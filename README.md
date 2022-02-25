@@ -829,3 +829,28 @@ scala> max(5, 7)
 res9: Int = 7
 ```
 
+By now you probably have figured out that specifying return is optional in Scala. You don’t have to specify the return keyword to return anything from the function. It will return the value of the last expression. In the previous case, if the if condition evaluates to true, then a is the last expression that is executed, so a is returned; otherwise b is returned. Even though the return type is optional, you do have to specify the type of the parameters when defining functions. Scala type inference will figure out the type of parameters when you invoke the function but not during the function declaration
+
+Type inference
+
+If you have a background in Haskell, OCaml, or any other type of inferred programming language, the way Scala parameters are defined could feel a bit weird. The reason is that Scala doesn’t use the Hindley-Milner algorithm to infer type; instead Scala’s type inference is based on declaration-local information, also known as local type infer- ence. Type inference is out of the scope of this book, but if you’re interested you can read about the Hindley-Milner type inference algorithm and why it’s useful.
+
+Sometimes it becomes necessary to create a function that will take an input and create a List from it. But the problem is you can’t determine the type of input yet. Someone could use your function to create a List of Int, and another person could use it to create a List of String. In cases like this you create a function in Scala by parameter- ized type. The parameter type will be decided when you invoke the function:
+
+```scala
+scala> def toList[A](value:A) = List(value)
+toList: [A](value: A)List[A]
+
+scala> toList(1)
+res16: List[Int] = List(1)
+
+scala> toList("Scala rocks")
+res15: List[java.lang.String] = List(Scala rocks)
+```
+
+When declaring the function, you denote the unknown parameterized type as A. Now when your toList is invoked, it replaces the A with the parameter type of the given parameter. In the method body you create an instance of immutable List by passing the parameter, and from the REPL output it’s clear that List is also using a parameter- ized type.
+
+NOTE If you’re a Java programmer, you’ll find lots of similarities between Java generics and Scala parameterized types. The only difference to remem- ber for now is that Java uses angle brackets (<>) and Scala uses square brack- ets ([]). Another Scala convention for naming the parameterized types is that they normally start at A and go up to Z as necessary. This contrasts with the Java convention of using T, K, V, and E.
+
+FUNCTION LITERALS
+
