@@ -393,7 +393,7 @@ val computers = Array(
 
 If you run this Scala code in the Scala REPL, you’ll see the following output:
 
-```console
+```scala
 computers: Array[scala.collection.immutable.Map[java.lang.String,java.lang.String]] = Array(Map(name -> Macbook, color -> white), Map(name -> HP Pavillion, color -> black))
 ```
 
@@ -427,8 +427,405 @@ Its multi-paradigm model provides programmers with the power of abstractions fro
 
 ## 2 Getting Started
 
+* Working with the Scala REPL
+* Scala basics
+* For-comprehensions and pattern matching
+* Building a complete REST client in Scala
+
+basic Scala types, functions, for-comprehensions, pattern matching, and the other usual suspects.
+
+pattern matching and for-comprehensions, are functional programming concepts.
+
+### REPL with Scala interpreter
+
+The easiest way to get started with Scala is by using the Scala interpreter, an interactive shell for writing Scala expressions and programs. To start the Scala interpreter in interactive mode, type scala at the command prompt.
+
+```scala
+Welcome to Scala version 2.10.0.final (Java ...).
+       Type in expressions to have them evaluated.
+       Type :help for more information.
+scala>
+```
+
+```scala
+scala> 42
+res0: Int = 42
+```
+
+The first line is what you typed. The Scala interpreter reads the input 42, evaluates it as an integer literal, creates an Int type object representing the number 42, and prints it back to the console. res0 is the name of the variable created by the Scala interpreter (the name of the variable could be different for you because the variable name is gen- erated by the Scala interpreter at runtime) and it holds the value 42. If you type the variable name, in this case res0, at the prompt, you’ll get similar output:
+
+```scala
+scala> res0
+res1: Int = 42
+```
+
+These steps together are called read-evaluate-print loop (REPL)
+
+hellow world in scala :
 
 
+```scala
+scala> println("Hello world")
+Hello world
+```
+
+You’re evaluating the println function by passing the "Hello world" string as a parameter, and Scala outputs the same string.
 
 
+DEFINITION - println is a function defined in scala.Console, which in turn uses System.out.println to print messages to the console. Scala Predef (part of the standard library) maps println to Console.println for you so you don’t have to prefix it with Console when using it.
+
+```scala
+scala> val myList = new java.util.ArrayList[String]()
+myList: java.util.ArrayList[String] = []
+```
+
+In this case you’re creating an instance of java.util.ArrayList that will hold String-type objects. If you don’t remember all the methods that you could possibly invoke on myList, don’t worry because the Scala interpreter will help you with that.
+Type in myList, followed by a period, and press Tab; the Scala interpreter lists all the methods you can invoke. Not only does it list all the methods associated with a data type, it also autocompletes variable names and class names that are known to the interpreter. 
+
+```scala
+scala> myList> 
+```
+
+enter tab
+
+![](2022-02-25-00-16-48.png)
+
+### Scala basics
+
+Scala types, including String and the value types Byte, Short, Int, Long, Float, Double, Boolean, and Char
+
+You’ll learn about two types of Scala variables, var and val, how they’re used, and how they’re dif- ferent.
+
+You’ll also learn about the Scala functions, how to define them, and ways you can invoke them. Let’s start with the basic data types in Scala.
+
+### Basic types
+
+If you’re a Java programmer, you’ll be glad to know that Scala supports all the basic value types (primitives): Byte, Short, Int, Float, Double, Boolean, and Char
+
+In Scala all the basic types are objects, and they’re defined under the scala package.
+
+![](2022-02-25-00-19-57.png)
+
+In Scala all the basic types are declared using initial caps. Instead of declaring something as int, in Scala it’s declared as Int.
+
+In earlier versions of Scala, pro- grammers could use lowercase and uppercase interchangeably, but from ver- sion 2.8 on, if you declare any variable with int, you’ll get a compiler error:
+
+Even though the full qualifying name of Int is scala.Int, you can use only Int because the scala package is automatically imported into every Scala source, so you don’t have to fully qualify the basic types.
+
+To see all packages that are automatically imported, use the :imports command inside REPL:
+
+```scala
+scala> :imports
+ 1) import java.lang._
+ 2) import scala._
+ 3) import scala.Predef._
+(153 types, 158 terms)
+(798 types, 806 terms)
+(16 types, 167 terms, 96 are implicit)
+```
+
+In this case, java.lang, scala, and scala.Predef packages are automatically imported when you start a REPL session.
+
+INTEGER LITERALS
+
+Basic types defined in table 2.2, Byte, Short, Int, Long, and Char are collec- tively called integral types.
+
+The integer literals can represent decimal, hexadecimal, and octal numbers. They’re determined by the way the literal is defined. If the literal is 0 or any nonzero digits, it’s a decimal number:
+
+```scala
+scala> val decimal = 11235
+decimal: Int = 11235
+```
+
+A literal is a shorthand way to describe an object. The shorthand expression matches the structure of the project. You could create a string object by using the string literal "one" and also using the new keyword, as in new String("one").
+
+Because integer literals are usually integers, Scala infers the type as integer, but if you want a Long type, you could add the suffix L or l:
+
+```scala
+scala> val decimal = 11235L
+decimal: Long = 11235
+```
+
+Hexadecimal numbers start with 0x, and octal numbers should be prefixed with 0:
+
+```scala
+scala> val hexa = 0x23
+hexa: Int = 35
+        
+scala> val octa = 023
+hexa: Int = 19
+```
+
+octal syntax is obsolete.
+
+FLOATING-POINT LITERALS
+
+Floating-point literals are composed of digits with a decimal point and an exponent part. But both the decimal point and the exponent part are optional. Floating-point literals are of type Float when they’re suffixed with F or f and are Double otherwise:
+
+```scala
+scala> val d  = 0.0
+d: Double = 0.0
+
+scala> val f = 0.0f
+f: Float = 0.0
+```
+
+You can also create a Double variable with an exponent part. To declare a variable with the value of 1 times 10 to the power of 30 (1 times 10^30), it would look like this:
+
+A corner case with floating literals
+
+In floating literals you could define a Double value as 1.0 or as 1, without the trailing zero or digits. In Scala you can invoke a method with a decimal point (.) followed by a method name, because all basic types (primitives) are objects in Scala, and like all other Scala objects they have a toString method. This raises an interesting corner case when invoking methods on floating literals. To invoke a toString method on the 1. floating literal, what should you do? You have to put a space between the dot and the toString method, like this: 1. toString. If you try it as 1.toString with- out the space, it invokes the toString method defined in the Int object. This is nec- essary only when the method name starts with a letter. For example, 1.+1 works fine and produces the desired output, 2.0.
+
+CHARACTER LITERALS
+
+A character literal is a single character enclosed in quotes. The character can be a printable Unicode character or an escape sequence:
+
+```scala
+scala> val capB = '\102'
+capB: Char = B
+
+scala> val capB = 'B'
+capB: Char = B
+
+new_line: Char =
+```
+
+Because the new_line character is nonprintable, unlike others, the value of the new_line variable doesn’t show up in the Scala interpreter. All the character escapes in Java and .NET are supported. 
+
+Scala takes programming with Unicode characters to the next level. You can use not only literals but also printable Unicode characters as variable and method names.
+
+```scala
+scala> val \u0061\u006e\u0073 = 42
+ans: Int = 42
+```
+
+Some contexts it improves the readability of the code.2 In the following example Unicode characters are used in the variable and method name:
+
+```scala
+val ? = scala.math.Pi
+def ?(x:Double) = scala.math.sqrt(x)
+```
+
+STRING LITERALS
+
+A string literal is a sequence of characters in double quotes. The characters are either printable Unicode characters or escape sequences. If the string literal contains a double-quote character, it must be escaped with a slash (\):
+
+```scala
+scala> val bookName = "Scala in \"Action\""
+bookName: java.lang.String = Scala in "Action"
+```
+
+The value of the string literal is of type String. Unlike other basic types, String is an instance of java.lang.String. As mentioned earlier, it’s automatically imported for you. Scala also supports a special multiline string literal that’s enclosed in triple quotes ("""). The sequence of characters is arbitrary, except that it may not contain a triple quote, and it doesn’t even necessarily have to be printable:
+
+```scala
+scala> val multiLine = """This is a
+     |                    multi line
+     |                    string"""
+
+multiLine: java.lang.String =
+This is a
+            multi line
+            string
+```
+
+The output of the multiLine variable has leading whitespaces, and maybe you don’t want that. 
+There’s an easy fix—invoking a method called stripMargin strips out the margin for you:
+
+```scala
+scala> val multiLine = """This is a
+    | |multi line
+    | |string""".stripMargin
+        
+multiLine: String =
+This is a
+multi line
+string
+```
+
+String interpolation
+Scala 2.10 has support for String interpolation. You can use the feature like this:
+
+```scala       
+scala> val name = "Nilanjan"
+name: String = Nilanjan
+scala> s"My name $name"
+res0: String = My name Nilanjan
+```
+
+Here is a method invoked on a class StringContext by passing the string literal con- tained within the double quotes. Any token prefixed with $ or wrapped with ${...} within the string will be replaced with its corresponding values. Similarly prepending f to any string literal allows the creation of simple formatted strings, similar to printf in other languages:
+
+```scala
+scala> val height = 1.9d
+height: Double = 1.9
+scala> val name = "James"
+name: String = James
+scala> println(f"$name%s is $height%2.2f meters tall")
+James is 1.90 meters tall
+```
+
+As a careful reader, you’re probably a little surprised by this stripMargin method because I said that a Scala String object is nothing but a representative of a java.lang.String object; where did we get this new stripMargin method? There’s no method called stripMargin in java.lang.String. Again Predef is doing a little bit of magic by wrapping java.lang.String to another type called scala.collection .immutable.StringLike.
+
+RichString vs. StringLike
+
+If you’ve used previous versions of Scala, you’ll recall an earlier class called scala.RichString that provided additional methods to Scala string objects, but from Scala 2.8 it’s called scala.collection.immutable.StringLike. Treating a string as an immutable collection makes sense because it’s a collection of charac- ters, and a string is an immutable object. Scala still has Rich type wrappers for other basic types like RichInt, RichBoolean, RichDouble, and so on.
+
+XML LITERALS
+
+ypically, working with XML means using third-party parsers and libraries, but in Scala it’s part of the language. Scala supports XML literals, where you can have XML frag- ments as part of the code:
+
+```scala
+val book = <book>
+           <title>Scala in Action</title>
+           <author>Nilanjan Raychaudhuri</author>
+           </book>
+
+book: scala.xml.Elem =
+    <book>
+       <title>Scala in Action</title>
+       <author>Nilanjan Raychaudhuri</author>
+  </book>
+```
+
+Scala converts the XML literal to a scala.xml.Elem type object. It doesn’t stop here. You can put valid Scala code inside curly braces, {}, within the XML tags, and it works out great when you have to generate the XML dynamically:
+
+```scala
+scala> val message = "I didn't know xml could be so much fun"
+scala> val code = "1"
+scala> val alert = <alert>
+            <message priority={code}>{message}</message>
+            <date>{new java.util.Date()}</date>
+            </alert>
+
+alert: scala.xml.Elem =
+<alert>
+       <message priority=”1”>
+            I didn't know xml could be so much fun
+        </message>
+       <date>Fri Feb 19 19:18:08 EST 2010</date>
+</alert>
+```
+
+As you can see, Scala executes the code inside the curly braces and replaces it with the output of the code. The code defined within curly braces is called Scala code blocks.
+
+When using Scala code to generate attribute values, make sure you don’t put dou- ble quotes around it (priority={code}) because if you do, Scala will ignore it and treat it as a string value. Throughout the book you’ll look into various uses of XML lit- erals and other XML goodies supported by Scala.
+
+### Defining variables
+
+You’ve already seen many examples about defining variables. In Scala there are two ways you can define variables: val and var. A val is a single assignment variable, some- times called value. Once initialized a val can’t be changed or reassigned to some other value (similar to final variables in Java). On the other hand, var is reassignable; you can change the value of the variable over and over again after initial assignment:
+
+```scala
+scala> val constant = 87
+constant: Int = 87
+
+scala> constant = 88
+<console>:5: error: reassignment to val
+       constant = 88
+                ^
+
+scala> var variable = 87
+variable: Int = 87
+
+scala> variable = 88
+variable: Int = 88
+```
+
+The Scala interpreter does a good job of inferring the type of variable based on the value, but there are times when you’d like to, or have to, specify the type. You can specify the type of variable after the variable name, separating it by a colon (:).
+
+There’ll be situations where you want to declare a variable without assigning a value because you don’t yet know the value. In cases like these you can use the Scala placeholder character (_) to assign a default value:
+
+```scala
+scala> var willKnowLater:String = _
+willKnowLater: String = null
+```
+
+Because the default value for String is null, in this example the value of willKnow- Later is null. As an exercise, try using Scala placeholder characters with other basic types and see what values you get back. One point to note here is that when declaring variables (both val and var), you have to specify the value or _ (Scala placeholder); otherwise, the Scala interpreter will complain. The only case where you can have vari- ables (only vars because val always needs a value when declared) without values assigned to them is when the variables are declared inside a class.
+
+Sometimes you may want to declare a type whose value gets calculated based on some time-consuming operation, and you don’t want to do that when you declare the variable; you want to initialize it lazily because by default Scala evaluates the value assigned to var or val when it’s declared. To change this default behavior, use lazy val:
+
+```scala
+scala> lazy val forLater = someTimeConsumingOperation()
+forLater: Unit = <lazy>
+```
+The someTimeConsumingOperation() will be called when the variable forLater is used in any expression. Here’s another example that demonstrates the laziness:
+
+```scala
+scala> var a = 1
+a: Int = 1
+
+scala> lazy val b = a + 1
+b: Int = <lazy>
+
+scala> a = 5
+a: Int = 5
+
+scala> b
+res1: Int = 6
+```
+
+In the last line, typing b forces the evaluation of the b, and because it wasn’t evaluated when b was declared, it uses the latest value of a. The lazy keyword is allowed only with val; you can’t declare lazy var variables in Scala.
+
+The variable declaration can sometimes have a pattern on the left side. Say you want to extract the first element of a List and assign it to a variable. You can do that using a pattern on the left side along with the variable declaration:
+
+```scala
+scala> val first :: rest = List(1, 2, 3)
+first: Int = 1
+rest: List[Int] = List(2, 3)
+```
+
+List is an immutable sequence type of collection (similar to List in Java and C#) in Scala, and in this case it holds a collection of integers from 1 to 3. The pattern on the left side matches the first element of the List, in this case 1, to the variable first and the rest to the tail of the list, 2 and 3. The :: (called cons) is a method defined in List. I cover more about pattern matching later in this chapter.
+
+Earlier I made the argument for immutability and why you should always prefer immutability to mutability. Keeping that in mind, always start with val when declaring variables in Scala and change to var when it’s absolutely necessary.
+
+### Defining functions
+
+Functions are building blocks in Scala,  To define a function in Scala, use the def keyword followed by the method name, parameters, optional return type, =, and the method body. 
+
+Use a colon (:) to separate the parameter list from the return type. 
+Multiple parameters are separated by commas (,). The equals sign (=) is used as a separator between the method signature and the method body.
+
+```scala
+scala> def myFirstMethod():String = { "exciting times ahead" }
+myFirstMethod: ()String
+
+scala> myFirstMethod()
+res6: java.lang.String = exciting times ahead
+```
+
+![](2022-02-25-01-23-21.png)
+
+The return type of a Scala function is optional because Scala infers the return type of a function automatically. There are situations where it doesn’t work, but don’t worry about that until later. Improve the myFirstMethod method by removing the return type:
+
+The significance of = after the method signature isn’t only to separate the signature from the method body but also to tell the Scala compiler to infer the return type of your function. If you omit that, Scala won’t infer your return type  and will throw error
+
+Unit in Scala is like void in Java, and it means that the method doesn’t return anything.
+
+TIP -  Scala type inference is powerful, but use it carefully. If you’re creating a library and plan to expose your functions as a public API, it’s a good practice to specify the return type for the users of the library. In any case, if you think it’s not clear from the function what its return type is, either try to improve the name so that it communicates its purpose better or specify the return type.
+
+Your myFirstMethod is simple: it returns the string "exciting times ahead" and when you have a function like that, you also drop the curly braces from the method body:
+
+If you invoke the function, you’ll get the same result. In Scala it’s always possible to take out unnecessary syntax noise from the code. Because you aren’t passing any parameters, you can take out the unused () from the declaration, and it almost looks like a variable declaration, except that instead of using var or val you’re using def:
+When calling the function you can also leave out the parentheses:
+
+```scala
+scala> def myFirstMethod() = "exciting times ahead"
+myFirstMethod: ()java.lang.String
+
+scala> myFirstMethod
+res17: java.lang.String = exciting times ahead
+```
+
+If the function has side effects, the common convention is to use “()” even though it isn’t required.
+
+Returning to function parameters, the following function called max takes two parameters and returns the one that’s the greater of the two:
+
+```scala
+scala> def max(a: Int, b: Int) = if(a > b) a else b
+max: (a: Int,b: Int)Int
+
+scala> max(5, 4)
+res8: Int = 5
+
+scala> max(5, 7)
+res9: Int = 7
+```
 
