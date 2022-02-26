@@ -854,3 +854,569 @@ NOTE If you’re a Java programmer, you’ll find lots of similarities between J
 
 FUNCTION LITERALS
 
+In Scala you can also pass a function as a parameter to another function, and most of the time in those cases I provide an inline definition of the function. This passing of functions as a parameter is sometimes loosely called closure (passing a function isn’t always necessarily closure; you’ll look into that in chapter 4). Scala provides a short- hand way to create a function in which you write only the function body, called func- tion literals. Put that to a test. In this test you want to add all the elements of a List using function literals. This demonstrates a simple use of function literals in Scala. Here you’re creating a List of even numbers:
+
+```scala
+scala> val evenNumbers = List(2, 4, 6, 8, 10)
+evenNumbers: List[Int] = List(2, 4, 6, 8, 10)
+```
+
+To add all the elements of List (scala.collection.immutable.List), you can use the foldLeft method defined in List. The foldLeft method takes two parameters: an initial value and a binary operation. It applies the binary operation to the given ini- tial value and all the elements of the list. It expects the binary operation as a function that takes two parameters of its own to perform the operation, which in our case will be addition. If you can create a function that will take two parameters and add them, you’re finished with the test. The foldLeft function will call your function for every element in the List, starting with the initial value:
+
+In this case the function (a: Int, b:Int) => a + b is called an anonymous function, or a function without a predefined name. You can improve your function by taking advantage of Scala’s type inference:
+
+
+```scala
+scala> evenNumbers.foldLeft(0) { (a: Int, b:Int) => a + b }
+res19: Int = 30
+
+scala> evenNumbers.foldLeft(0) { (a, b) => a + b }
+res20: Int = 30
+```
+
+Usually you have to specify the type of the parameter for top-level functions because Scala can’t infer the parameter types when declared, but for anonymous functions Scala inference can figure out the type from the context. In this case you’re using a list of integers and 0 as your initial value, and based on that Scala can easily infer the type of a and b as an integer. Scala allows you to go even further with your anonymous function: you can drop the parameters and only have the method body to make it a function literal. But in this case the parameters will be replaced with underscores (_). An underscore has a special meaning in Scala, and in this context it’s a placeholder for a parameter; in your case, use two underscores:
+
+```scala
+scala> evenNumbers.foldLeft(0) { _ + _ }
+res21: Int = 30
+```
+
+Each underscore represents a parameter in your function literal. You’ve already seen another use of the underscore when assigning a default value to variables. In Scala you can use underscores in various places, and their meaning is determined solely by the context and where they’re used. Sometimes it gets a little confusing, so always remem- ber that the value of the underscore is based on where it’s being used. You’ll see other uses of underscores throughout the book. Function literals are a common idiom in Scala, and you’ll find occurrences of them in Scala libraries and codebases.
+
+
+In this case you’re invoking the given function literals for each character in the name string; when it finds an uppercase character, it will exit. The underscore in this con- text represents a character of name string.
+
+```sala
+
+val name = "minKu"
+name: String = minKu
+
+scala> val hasUpperCase = name.exists(_.isUpper)
+hasUpperCase: Boolean = true
+```
+
+_.isUpper is a function literal
+
+In this case you’re invoking the given function literals for each character in the name string; when it finds an uppercase character, it will exit. The underscore in this con- text represents a character of name string.
+
+USING SCALA CLOSURE AND FIRST-CLASS FUNCTIONS: AN EXAMPLE
+
+A closure is any function that closes over the environment in which it’s defined. For example, closure will keep track of any variable changes outside the function that are being referred to inside the function.
+
+In the example you’ll try to add support for the word break. I haven’t talked about Scala keywords yet, but Scala doesn’t have break or continue. Once you get comfort- able with Scala, you won’t miss them because Scala’s support of functional program- ming style reduces the need for break or continue. But assume you have a situation where you think having break would be helpful. Scala is an extensible programming language, so you can extend it to support break.
+
+Use the Scala exception-handling mechanism to implement break in Scala. Throwing an exception will help you break the sequence of execution, and the catch block will help you reach the end of the call. Because break isn’t a keyword, you can use it to define your function so that it will throw an exception:
+
+```scala
+scala> def break = new RuntimeException("break exception")
+break: RuntimeException
+```
+Another subject not yet covered is exception handling, but if you’ve used it in Java, C#, or Ruby, it should be easy to follow. In any case, you’ll read about exception han- dling in a later part of the chapter. Now create the main function that will take the operation that needs a breakable feature. Make it obvious and call it breakable:
+
+```scala
+scala> def breakable(op: => Unit) {}
+breakable: (op: => Unit)Unit
+```
+
+What’s this op: => Unit? The special right arrow (=>) lets Scala know that the breakable function expects a function as a parameter. The right side of the => defines the return type of the function—in this case it’s Unit (similar to Java void)—and op is the name of the parameter.
+
+Because you haven’t specified anything on the left side of the arrow, it means that the function you’re expecting as a parameter doesn’t take any parameter for itself. But if you expect a function parameter that takes two parameters, such as foldLeft, you have to define it as follows:
+
+```scala
+def foldLeft(initialValue: Int, operator: (Int, Int) => Int)= {}
+foldLeft: (initialValue: Int, operator: (Int, Int) => Int)Unit
+```
+
+The breakable function that you declared takes a no-parameter function and returns Unit. Now, using these two functions, you could simulate the break. Let’s look at an example function that needs to break when the environment variable SCALA_HOME isn’t set; otherwise, it must do the work:
+
+```scala
+def install = {
+  val env = System.getenv("SCALA_HOME")
+  if(env == null) break
+  println("found scala home lets do the real work")
+}
+```
+
+Now inside the breakable function we need to catch the exception that will get raised
+when break is called from the install function:
+
+To invoke the breakable function, pass the method name that needs a breakable fea- ture, like breakable(install)—or you can inline the install function and pass it as a closure:
+
+
+```scala
+
+val breakException = new RuntimeException("break exception")
+breakException: RuntimeException = java.lang.RuntimeException: break exception
+
+def breakable(op: => Unit) {
+  try {
+    op
+  } catch { case _ : Throwable => }
+}
+breakable: (op: => Unit)Unit
+
+def break = throw breakException
+break: Nothing
+
+def install = {
+  val env = System.getenv("SCALA_HOME")
+  if(env == null) break
+  println("found scala home lets do the real work")
+}
+install: Unit
+
+execute : 
+
+breakable(install)
+
+breakable {
+  val env = System.getenv("SCALA_HOME")
+  if(env == null) break
+  println("found scala home lets do the real work")
+}
+
+```
+
+In Scala if the last argument of a function is of function type, you can pass it as clo- sure. This syntax sugar is useful in creating DSLs. In the next chapter you’ll look into how closures are converted into objects; remember, everything in Scala is an object.
+
+NOTE 
+
+Scala already provides breakable as part of the library. Look for scala.util.control.Breaks. You should use Breaks if you have a need for break. Again, I’d argue that once you look into functional programming with Scala in detail, you’ll probably never have a need for break.
+
+### Working with Array and List
+
+In Scala, array is an instance of the scala.Array class and is similar to the Java array:
+
+```scala
+scala> val array = new Array[String](3)
+array: Array[String] = Array(null, null, null)
+
+scala> array(0) = "This"
+
+scala> array(1) = "is"
+
+scala> array(2) = "mutable"
+
+scala> array
+res4: Array[String] = Array(This, is, mutable)
+```
+
+Always remember that in Scala the type information or parameterization is provided using square brackets. The type parameterization is a way to configure an instance with type information when creating the instance.
+
+Now iterating through each element in the array is easy; call the foreach method:
+
+```scala
+scala> array.foreach(println)
+This
+is
+mutable
+```
+
+You’re passing a function literal to the foreach method to print all the elements in the array. There are other useful methods defined for Array objects; for a complete list look in Scaladoc for scala.collection.mutable.ArrayLike. The most obvious question in your mind right now is probably why we have to check ArrayLike, which is a different class than the Array used to check methods that are available for an Array instance in Scala. The answer is Predef. Scala Predef provides additional array func- tionality dynamically using ArrayLike when you create an instance of an Array. Again, Predef is a great place to start to understand the Scala Library.
+
+NOTE 
+
+Predef implicitly converts Array to scala.collection.mutable .ArrayOps. ArrayOps is the subclass of ArrayLike, so ArrayLike is more like the interface for all the additional methods available to Array type collections.
+
+When writing Scala scripts, you sometimes have to take command-like arguments. You can do that implicitly as a val type variable called args. In the following example you’ll create a Scala script that takes input from a user and prints it to the console:
+
+Open your favorite editor and save this line in a file called myfirstScript.scala. Open a command prompt to the location where the file is saved and run the following command:
+
+myFirstScript.scala file content :
+```scala
+args.foreach(println)
+```
+
+```sh
+scala  myfirstScript.scala my first script
+my
+first
+script
+```
+
+You executed your first script. You’re using the same command you used to start the Scala REPL environment. But in this case you’re executing a Scala script by specifying the script filename and three parameters: my, first, and script.
+
+The Array is a mutable data structure; by adding each element to the array, you’re mutating the array instance and producing a side effect. In functional programming, methods should not have side effects. The only effect a method is allowed to have is to compute a value and return that value without mutating the instance. An immutable and more functional alternative to a sequence of objects like Array is List. In Scala, List is immutable and makes functional-style programming easy. Creating a list of ele- ments is as easy as 
+the following:
+
+```scala
+scala> val myList = List("This", "is", "immutable") myList: List[java.lang.String] = List(This, is, immutable)
+```
+
+The List is shorthand for scala.collection.immutable.List, and again Predef automatically makes it available to you:
+
+```scala
+scala> val myList = scala.collection.immutable.List("This", "is", "immutable")
+myList: List[java.lang.String] = List(This, is, immutable)
+```
+
+What is this scala.collection.immutable.$colon$colon?
+
+If you call the getClass method on myList to see what type of object it is, you might be surprised. Instead of scala.collection.immutable.List, you’ll see
+
+```scala
+scala> myList.getClass
+res42: java.lang.Class[_] = class
+    scala.collection.immutable.$colon$colon
+```
+
+That’s because scala.collection.immutable.List is an abstract class, and it comes with two implementations: the scala.Nil class and scala.::. In Scala, :: is a valid identifier, and you could use it to name a class. Nil represents an empty list, and scala.:: represents any nonempty list.
+
+Most of us are used to mutable collections where, when we add or remove elements, the collection instance expands or shrinks (mutates), but immutable collections never change. Instead, adding or removing an element from an immutable collection cre- ates a new modified collection instance without modifying the existing one. The fol- lowing example adds an element to an existing List:
+
+```scala
+scala> val oldList = List(1,2)
+oldList: List[Int] = List(1, 2)
+
+scala> val newList = 3 :: oldList
+newList: List[Int] = List(3, 1, 2)
+
+scala> oldList
+res1: List[Int] = List(1, 2)
+```
+
+In this example you’re adding 3 to an existing List containing elements 1 and 2 using the :: method. The job of the :: method is to create a new List with all the existing elements plus the new element added at the front of the List. To add at the end of the List, invoke the :+ method:
+
+```scala
+scala> val newList = oldList :+ 3
+newList: List[Int] = List(1, 2, 3)
+```
+
+Scala provides a special object called Nil to represent an empty List, and you can use it to create new lists easily:
+
+```scala
+scala> val myList = "This" :: "is" :: "immutable" :: Nil myList: List[java.lang.String] = List(This, is, immutable)
+```
+
+In this example you’re using a new instance of List every time you add an element. To delete an element from a List, you could use the - method, but it’s deprecated. A better way would be to use the filterNot method, which takes a predicate and selects all the elements that don’t satisfy the predicate. To delete 3 from the newList, you can do something like the following:
+
+
+```scala
+scala> val afterDelete = newList.filterNot(_ == 3)
+afterDelete: List[Int] = List(1, 2)
+```
+
+
+### Controlling flow with loops and ifs
+
+
+In Scala, if and else blocks work as they do in any other programming language. If the expression inside the if evaluates to true, then the if block gets executed; otherwise, the else block is executed. The interest- ing part about Scala is that every statement is an expression, and its value is deter- mined by the last expression within the statement. Assigning a value depending on some condition in Scala could look like this:
+
+```scala
+scala> val useDefault = false
+useDefault: Boolean = false
+
+scala> val configFile = if(useDefault) "custom.txt" else "default.txt" configFile: java.lang.String = default.txt
+```
+
+Scala doesn’t support the ? operator as Java does, but I don’t think you’ll miss it in Scala. You can nest if/else blocks, and you can combine multiple if/else blocks using else if.
+
+Loops in Scala have all the usual suspects like the while loop and do-while, but the most interesting looping construct is for or for-comprehensions. The while and do-while loops are pretty standard, and in Scala they aren’t any different from Java or C#. The next section looks at Scala for-comprehensions.
+
+### For-comprehensions
+
+A for-comprehension in Scala is like a Swiss Army knife: you can do many things with it using basic simple elements. The for expression in Scala consists of a for keyword followed by one or more enumerators surrounded by parentheses and followed by an expression block or yield expression
+
+![](2022-02-25-21-42-08.png)
+
+Before I go into yield expression, let’s look into the more traditional form of the for loop. The common pattern used in a for loop is to iterate through a collection. To print all the files in a directory that end with the .scala extension, for example, you have to do something like the following:
+
+```scala
+
+scala> val files = new java.io.File(".").listFiles
+files: Array[java.io.File] = Array(./.metals, ./README.md, ./2022-02-25-01-23-21.png, ./2022-02-25-00-19-57.png, ./myFirstScript.scala, ./.git, ./.vscode, ./2022-02-25-00-16-48.png, ./2022-02-25-21-42-08.png)
+
+scala> for(file <- files) {
+     | val filename = file.getName
+     | if(filename.endsWith(".scala")) println(file)
+     | }
+
+./myFirstScript.scala
+
+```
+
+The only thing that looks different from for loops in Java or C# is the expression file <- files. In Scala this is called a generator, and the job of a generator is to iterate through a collection. The right side of the <- represents the collection—in this case, files. For each element in the collection (file in this case) it executes the for block. This is similar to 
+the way you define a for loop in Java:
+
+```java
+for(File file: files) {
+    String filename = file.getName();
+    if(filename.endsWith(".scala")) System.out.println(file);
+}
+```
+
+In the case of Scala, you don’t have to specify the type of file object because Scala type inference will take care of it.
+
+Apart from the generator, you can use other ingredients in a Scala for loop to sim- plify the previous example.
+
+```scala
+for(
+    file <- files;
+    fileName = file.getName;
+    if(fileName.endsWith(".scala"))
+) println(file)
+
+./myFirstScript.scala
+
+```
+guard clauses -> if
+
+Scala for loops allow you to specify definitions and guard clauses inside the loop. In this case you’re defining a filename variable and checking whether the filename ends with .scala. The loop will execute when the given guard clause is true, so you’ll get the same result as the previous example. Note that all the variables created inside a for expression are of the val type, so they can’t be modified and hence reduce the possi- bility of side effects.
+
+As mentioned earlier, it’s possible to specify more than one generator in a Scala for loop control. The following example executes the loop for each generator and adds them:
+
+
+```scala
+scala> val aList = List(1,2,3)
+aList: List[Int] = List(1, 2, 3)
+
+scala> val bList = List(4,5,6)
+bList: List[Int] = List(4, 5, 6)
+
+scala> for { a <- aList; b <- bList } println(a+b)
+5
+6
+7
+6
+7
+8
+7
+8
+9
+
+for ( a <- aList; b <- bList) println(a+b)
+
+```
+
+
+The generators in this case are aList and bList, and when you have multiple genera- tors, each generator is repeated for the other generator. When a = 1 for each value of b, that is,b=4,b=5,b=6, the loop will be executed, and so on. I used curly braces to surround the for expression, but you don’t have to; you could use (). I tend to use curly braces when I have more than one generator and guard clause.
+
+
+The for-comprehension in Scala comes in two flavors. You’ve already seen one form in the previous examples: the imperative form. In this form you specify the state- ments that will get executed by the loop, and it doesn’t return anything. The other form of for-comprehension is called the functional form (sometimes it’s also called sequence comprehension).
+
+In the functional form, you tend to work with values rather than execute statements, and it does return a value. Look at the same example in functional form:
+
+```scala
+
+scala> for( a <- aList; b <- bList) yield a+b
+res3: List[Int] = List(5, 6, 7, 6, 7, 8, 7, 8, 9)
+
+```
+
+Instead of printing the value of a + b, you’re returning the value of the addition from the loop using the yield keyword. You’re using the same aList and bList instances in the loop control, and it returns the result as a List. Now if you want to print the result, as in the previous example, you have to loop through the result List:
+
+```scala
+scala> val result = for (a <- aList; b <- bList) yield a+b
+result: List[Int] = List(5, 6, 7, 6, 7, 8, 7, 8, 9)
+```
+
+It does look like the functional form is more verbose than the imperative form, but think about it. You’ve separated the computation (the adding of two numbers) from how you’re using it—in this case, printing the result. This improves the reusability and compatibility of functions or computations, which is one of the benefits of functional programming. In the following example you reuse the result produced by the for- yield loop to create an XML node:
+
+```scala
+scala> val xmlNode = <result>{result.mkString(",")}</result>
+xmlNode: scala.xml.Elem = <result>5,6,7,6,7,8,7,8,9</result>
+```
+
+The mkString is a method defined in scala.collection.immutable.List. It takes each element in the List and concatenates each element with whatever separator you provide—in this case, a comma. Even though it doesn’t make sense, what if you try to print inside the yield expression? What will happen? Remember, everything in Scala is an expression and has a return value. If you try the following, you’ll still get a result, but the result won’t be useful because it will be a collection of units. A unit is the equiv- alent of void in Java, and it’s the result value of a println function used inside the yield expression:
+
+```scala
+scala> for { a<- aList; b <- bList} yield (println(a+b))
+5
+6
+7
+6
+7
+8
+7
+8
+9
+res5: List[Unit] = List((), (), (), (), (), (), (), (), ())
+```
+
+
+### Pattern matching
+
+Pattern matching is another functional programming concept introduced in Scala. To start with, Scala pattern matching looks similar to switch case in Java. The example in the following listing, showing the similarity between Scala and Java, takes an integer and prints its ordinal number.
+
+```java
+public class Ordinal {
+    public static void main(String[] args) {
+        ordinal(Integer.parseInt(args[0]));
+    }
+    
+    public static void ordinal(int number) {
+        switch(number) {
+            case 1: System.out.println("1st"); break;
+            case 2: System.out.println("2nd"); break;
+            case 3: System.out.println("3rd"); break;
+            case 4: System.out.println("4th"); break;
+            case 5: System.out.println("5th"); break;
+            case 6: System.out.println("6th"); break;
+            case 7: System.out.println("7th"); break;
+            case 8: System.out.println("8th"); break;
+            case 9: System.out.println("9th"); break;
+            case 10: System.out.println("10th"); break;
+            default : System.out.println("Cannot do beyond 10");
+        } 
+    }
+}
+```
+
+```scala
+
+ordinal(args(0).toInt)
+
+def ordinal(number:Int) = number match {
+    case 1 => println("1st")
+    case 2 => println("2nd")
+    case 3 => println("3rd")
+    case 4 => println("4th")
+    case 5 => println("5th")
+    case 6 => println("6th")
+    case 7 => println("7th")
+    case 8 => println("8th")
+    case 9 => println("9th")
+    case 10 => println("10th")
+    case _ => println("Cannot do beyond 10")
+}
+
+ordinal(args(0).toInt)
+ordinal(2)
+2nd
+
+```
+
+Because Scala can also be used as a scripting language, you don’t have to define an entry point like the main method.And you no longer need to provide a break for each case because in Scala you can’t overflow into other case clauses (caus- ing multiple matches) as in Java, and there’s no default statement. In Scala, default is replaced with case _ to match everything else. To run the Ordinal.scala script, exe- cute the following command from a command prompt:
+
+```sh
+scala Ordinal.scala <your input>
+scala Ordinal.scala 2
+```
+
+The wildcard case is optional and works like a safe fallback option. If you remove it, and none of the existing cases match, you get a match error:
+
+```scala
+scala> 2 match { case 1 => "One" }
+scala.MatchError: 2 (of class java.lang.Integer)
+  ... 32 elided
+```
+
+This is great because it tells you that you’re missing a case clause, unlike in Java, where if you remove the default and none of the existing cases match, it ignores it without providing any sort of feedback.
+
+The similarity between Java and Scala pattern matching ends here because Scala takes pattern matching to the next level. In Java you can only use a switch statement with primitives and enums, but in Scala you can pattern match strings and complex values, types, variables, constants, and constructors. More pattern-matching concepts are in the next chapter, particularly constructor matching, but look at an example of a type match. The following example defines a method that takes an input and checks the type of the given object:
+
+```scala
+scala> def printType(obj: AnyRef) = obj match {
+     |   case s: String => println("This is string")
+     |   case l: List[_] => println("This is List")
+     |   case a: Array[_] => println("This is an array")
+     |   case d: java.util.Date => println("This is a date")
+     | }
+printType: (obj: AnyRef)Unit
+
+scala> printType("min")
+This is string
+```
+
+n this example you’re using a Scala type pattern consisting of a variable and a type. This pattern matches any value matched by the type pattern—in this case, String, List[AnyRef], Array[AnyRef], and java.util.Date. When the pattern matches with
+
+the type, it binds the variable name to the value. You could do that in Java using the instanceof operator and casting, but this is a more elegant solution. Save this method into the file printType.scala and load the file into the Scala REPL:
+
+```scala
+scala> :load printType.scala
+Loading printType.scala...
+printType: (obj: AnyRef)Unit
+```
+
+Now try a printType function with various types of input: 
+
+```scala
+scala> printType("Hello")
+This is string
+
+scala> printType(List(1, 2, 3))
+This is List
+
+scala> printType(new Array[String](2))
+This is an array
+
+scala> printType(new java.util.Date())
+This is a date
+```
+
+
+Scala also allows the infix operation pattern, in which you can specify an infix opera- tor in your pattern. In the infix style, operators are written between the operands—for example, 2 + 2. In the following example, you’re extracting the first and the second elements from the List:
+
+```scala
+scala> List(1,2,3,4) match {
+     | case f :: s :: rest => List(f,s)
+     | case _ => Nil
+     | }
+res0: List[Int] = List(1, 2)
+```
+
+Here you’re matching 1 to f, 2 to s, and 3 and 4 to the rest of the variables. Think of it as what it will take to create a List of 1, 2 ,3, and 4 from the expression f :: s :: rest, and then this will make more sense.
+
+Sometimes you need to have a guard clause along with the case statement to have more flexibility during pattern matching. In the following example you’re determin- ing the range in which the given number belongs:
+
+```scala
+scala> def rangeMatcher(num:Int) = num match {
+     | case within10 if within10 <= 10 => println("with in 0 to 10")
+     | case within100 if within100 <= 100 => println("with in 11 to 100")
+     | case beyond100 if beyond100 < Integer.MAX_VALUE => println("beyond 100")
+| }
+rangeMatcher: (num: Int)Unit
+
+scala> rangeMatcher(5)
+with in 0 to 10
+```
+
+```scala
+val suffixes = List("th", "st", "nd", "rd", "th", "th", "th", "th", "th","th")
+
+def ordinal(number:Int) = number match {
+    case tenTo20 if 10 to 20 contains tenTo20 => number + "th" 
+    case rest => rest + suffixes(number % 10)
+}
+
+scala> ordinal(100)
+res11: String = 100th
+
+scala> ordinal(1)
+res6: String = 1st
+
+println(ordinal(args(0).toInt))
+```
+
+infix operator -> instead of 10,to is 10 to or f :: s
+
+You’re calling the to method in RichInt, and it creates an inclusive range (scala.collection.immutable .Inclusive). You’re calling the contains method on the range to check whether the number belongs to the range. In the last case you’re mapping all the numbers below 10 and beyond 20 to a new variable called rest. This is called variable pattern matching in Scala. You can access elements of a List like array using index positions in the List.
+
+### Exception handling
+
+You caught a glimpse of Scala exception handling in the breakable example. Scala’s exception handling is little different from Java’s. Scala allows you a single try/catch block, and in the single catch block you can use pattern matching to catch excep- tions. The catch block is a match block under the surface, so all the pattern-matching techniques that you learned in the previous section are applicable to a catch block. Modify the rangeMatcher example to throw an exception when it’s beyond 100:
+
+```scala
+def rangeMatcher(num:Int) = num match {
+    case within10 if within10 <= 10 => println("with in 0 to 10")
+    case within100 if within100 <= 100 => println("with in 11 to 100") 
+    case _ => throw new IllegalArgumentException( "Only values between 0 and 100 are allowed")
+}
+
+rangeMatcher: (num: Int)Unit
+
+scala> try {
+            rangeMatcher(1000)
+        } catch { case e: IllegalArgumentException => e.getMessage }
+
+res18: Any = Only values between 0 and 100 are allowed
+```
+
+The case statement isn’t any different from the type pattern matching used in the printType example.
+
+
+Scala doesn’t have any concept like a checked exception; all exceptions are unchecked. This way is more powerful and flexible because as a programmer you’re free to decide whether or not you want to catch an exception.
+
+Even though Scala exception handling is implemented differently, it behaves exactly like Java, with exceptions being unchecked, and it allows Scala to easily interoperate with existing Java libraries.
+
+### Command-line REST client: building a working example
