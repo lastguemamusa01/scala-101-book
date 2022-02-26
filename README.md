@@ -1420,3 +1420,721 @@ Scala doesn’t have any concept like a checked exception; all exceptions are un
 Even though Scala exception handling is implemented differently, it behaves exactly like Java, with exceptions being unchecked, and it allows Scala to easily interoperate with existing Java libraries.
 
 ### Command-line REST client: building a working example
+
+you’ll build a command-line-based REST client in Scala script. You’re going to use the Apache HttpClient6 library to handle HTTP connections and various HTTP methods.
+
+
+What is REST?
+
+REST stands for REpresentational State Transfer. It’s software architectural style for distributed hypermedia systems like the World Wide Web. The term first appeared in “Architectural Styles and the Design of Network based Software Architectures,”7 the doctoral dissertation paper by Roy Fielding, one of the principal authors of the HTTP specification.
+
+REST strictly refers to the collection of architectural principles8 mentioned here. Sys- tems that follow Fielding’s REST principles are often referred to as RESTful.
+
+* Application state and functionality are divided into resources.
+* Every resource is uniquely addressable using a universal syntax.
+* All resources share a uniform interface for transfer of state between client
+and resource, consisting of well-defined operations (GET, POST, PUT, DELETE,
+OPTIONS, and so on, for RESTful web services) and content types.
+* A protocol that’s client/server, stateless cacheable, and layered.
+
+To make a REST call to a RESTful service, you have to be aware of the operations sup- ported by the service. To test your client you need a RESTful web service. You could use free public web services to test the client, but to have better control of the opera- tions on the service you’ll create one. You could use any REST tool or a framework to build the REST service. I’ll use a Java servlet (Java developers are familiar with it) to build the service to test the REST client.
+
+The simple way to create a RESTful service for now is to use a Java servlet, as shown in the following listing.
+
+java servlet a restful service
+
+```java
+
+package restservice;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+import java.util.*;
+
+public class TestRestService extends HttpServlet {
+    public void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+        PrintWriter out = response.getWriter(); 
+        out.println("Get method called"); 
+        out.println("parameters: " + parameters(request)); 
+        out.println("headers: " + headers(request));
+    }
+    
+    public void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException { 
+        
+        PrintWriter out = response.getWriter(); 
+        out.println("Post method called"); 
+        out.println("parameters: " + paramaters(request)); 
+        out.println("headers: " + headers(request));
+    }
+  
+    public void doDelete(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+
+        PrintWriter out = response.getWriter();
+        out.println("Delete method called");
+    }
+
+    private String parameters(HttpServletRequest request) {
+        
+        StringBuilder builder = new StringBuilder();
+
+        for (Enumeration e = request.getParameterNames() ; e.hasMoreElements();) {
+            String name = (String)e.nextElement();
+            builder.append("|" + name + "->" + request.getParameter(name));
+        }
+
+        return builder.toString();
+    }
+
+    private String headers(HttpServletRequest request) {
+        
+        StringBuilder builder = new StringBuilder();
+        
+        for (Enumeration e = request.getHeaderNames() ; e.hasMoreElements();) {
+            String name = (String)e.nextElement();
+            builder.append("|" + name + "->" + request.getHeader(name)); 
+        }
+
+        return builder.toString();
+    }
+}
+```
+
+In the servlet you’re supporting three HTTP methods: GET, POST, and DELETE. These methods are simple and return the request parameters and headers in response, which is perfect when testing your REST client. The two helper methods I added are parameters and headers. The parameters method is responsible for parsing the HTTP request object for parameters that are passed from the client; in this case, it’s the REST client. The headers method retrieves all the header values from the request object. Once the servlet is built, you must deploy the WAR file to a Java web container.
+
+I’ve used Maven and Jetty9 to build and run10 the Java servlet, but you’re free to use
+any Java web container.
+
+### Introducing HttpClient library
+
+HttpClient is a client-side HTTP transport library. The purpose of HttpClient is to transmit and receive HTTP messages. It’s not a browser, and it doesn’t execute JavaScript or try to guess the content type or other functionality unrelated to the HTTP transport.
+
+The most essential function of HttpClient is to execute HTTP meth- ods. Users are supposed to provide a request object like HttpPost or HttpGet, and the HttpClient is expected to transmit the request to the target server and return the cor- responding response object, or throw an exception if the execution is unsuccessful.
+
+HttpClient encapsulates each HTTP method type in an object, and they’re avail- able under the org.apache.http.client.methods package. In this script you’re going to use four types of requests: GET, POST, DELETE, and OPTIONS.11 The previous example implemented only GET, POST, and DELETE because the web container will automatically implement the OPTIONS method. HttpClient provides a default client and is good enough for our purpose. To execute an HTTP DELETE method you have to do the following:
+
+```scala
+val httpDelete = new HttpDelete(url)
+val httpResponse = new DefaultHttpClient().execute(httpDelete)
+```
+
+The HTTP POST method is a little different because, according to the HTTP specifica- tion, it’s one of the two entity-enclosing methods. The other one is PUT. To work with entities HttpClient provides multiple options, but in the example you’re going to use the URL-encoded form entity. It’s similar to what happens when you POST a form sub- mission. Now you can dive into building the client.
+To use the HttpClient in your script, you have to import all the necessary classes. I haven’t talked about import, but for now think of it as similar to Java import except that Scala uses _ for importing all classes in a package, as in the following:
+
+```scala
+import org.apache.http._
+import org.apache.http.client.entity._
+import org.apache.http.client.methods._
+import org.apache.http.impl.client._
+import org.apache.http.client.utils._
+import org.apache.http.message._
+import org.apache.http.params._
+```
+
+### Building the client, step by step
+
+Now, because the service is up and running, you can focus on the client script. To make the script useful, you have to know the type of operation (GET or POST), request parameters, header parameters, and the URL to the service. The request parameters and header parameters are optional, but you need an operation and a URL to make any successful REST call:
+
+```scala
+require(args.size >= 2, "at minmum you should specify action(post, get, delete, options) and url")
+
+val command = args.head
+val params = parseArgs(args)
+val url = args.last
+```
+You’re using a require function defined in Predef to check the size of the input. Remember that the command-line inputs are represented by an args array. The require function throws an exception when the predicate evaluates to false. In this case, because you expect at least two parameters, anything less than that will result in an exception. The first parameter to the script is the command, and the next ones are the request and header parameters. The last parameter is the URL. The input to the script will look something like the following:
+
+```scala
+post -d <comma separated name value pair> -h <comma separated name value pair> <url>
+
+```
+
+The request parameters and header parameters are determined by a prefix parame- ter, –d or –h. One way to define a parseArgs method to parse request and header parameters is shown in the following listing.
+
+parsing headers and parameters passed to the program
+
+```scala
+def parseArgs(args: Array[String]): Map[String, List[String]] = {
+    def nameValuePair(paramName: String) = {
+        def values(commaSeparatedValues: String) =
+            commaSeparatedValues.split(",").toList
+            val index = args.findIndexOf(_ == paramName)
+            (paramName, if(index == -1) Nil else values(args(index + 1)))
+    }
+    Map(nameValuePair("-d"), nameValuePair("-h"))
+}
+```
+
+This listing has defined a function inside another function. Scala allows nested func- tions, and nested functions can access variables defined in the outer scope function— in this case, the args parameter of the parseArgs function. Nested functions allow you to encapsulate smaller methods and break computation in interesting ways. Here the nested function nameValuePair takes the parameter name, –d or –h, and creates a list of name-value pairs of request or header parameters. The next interesting thing about the nameValuePair function is the return type. 
+
+The return type is a scala.Tuple2, a tuple of two elements. Tuple is immutable like List, but unlike List it can contain different types of elements; in this case, it contains a String and a List. Scala provides syntax sugar for creating a Tuple by wrapping elements with parentheses ():
+
+```scala
+scala> val tuple2 = ("list of one element", List(1))
+tuple2: (String, List[Int]) = (list of one element,List(1))
+
+scala> val tuple2 = new scala.Tuple2("list of one element", List(1)) tuple2: (java.lang.String, List[Int]) = (list of one element,List(1))
+
+scala> val tuple3 = (1, "one", List(1))
+tuple3: (Int, String, List[Int]) = (1,one,List(1))
+```
+
+The last interesting thing I’d like to mention about the parseArgs method is the Map. A Map is an immutable collection of keys and values. Chapter 4 discusses Map in detail. In this example you’re creating a Map of parameter name(-d or –h) and listing all the parameters as values. When you pass a tuple of two elements to Map, it takes the first element of the tuple as the key and the second element as the value:
+
+```scala
+scala> val m = Map(("key1","value1"),("key2","value2"))
+m: scala.collection.immutable.Map[String,String] = Map(key1 -> value1, key2 -> value2)
+
+scala> m("key1")
+res0: String = value1
+```
+
+For now you’ll support only four types of REST operations: POST, GET, DELETE, and OPTIONS, but I encourage you to implement other HTTP methods like PUT and HEAD. To check what type of operation is requested, you can use simple pattern matching:
+
+```scala
+command match {
+  case "post"    => handlePostRequest
+  case "get"     => handleGetRequest
+  case "delete"  => handleDeleteRequest
+  case "options" => handleOptionsRequest
+}
+```
+
+Here handlePostRequest, handleGetRequest, handleDeleteRequest, and handle- OptionRequest are functions defined in the script. Each needs to be implemented a little differently. For example, in the case of a GET call, you’ll pass the request parame- ters as query parameters to the URL. POST will use a URL-encoded form entity to pass the request parameters. DELETE and OPTIONS won’t use any request parameters. Look at the handleGetRequest method, shown in the following listing.
+
+```scala
+def headers = for(nameValue <- params("-h")) yield {
+  def tokens = splitByEqual(nameValue)
+  new BasicHeader(tokens(0), tokens(1))
+}
+
+def handleGetRequest = {
+    val query = params("-d").mkString("&")
+    val httpget = new HttpGet(s"${url}?${query}") headers.foreach { httpget.addHeader(_) }
+    val responseBody = new DefaultHttpClient().execute(httpget, new BasicResponseHandler())
+    println(responseBody)
+}
+```
+
+In this method you’re retrieving all the request parameters from the Map params and creating the query string. Then you create the HttpGet method with the given URL and query string. The DefaultHttpClient is executing the httpget request and giv- ing the response. The handlePostRequest method is a little more involved because it needs to create a form entity object, as shown in the following listing.
+
+Preparing a POST request and invoking the REST service
+
+```scala
+
+def formEntity = {
+    def toJavaList(scalaList: List[BasicNameValuePair]) = { java.util.Arrays.asList(scalaList.toArray:_*)
+    }
+  
+    def formParams = for(nameValue <- params("-d")) yield {
+        def tokens = splitByEqual(nameValue)
+        new BasicNameValuePair(tokens(0), tokens(1))
+    }
+
+    def formEntity = new UrlEncodedFormEntity(toJavaList(formParams), "UTF-8")
+    formEntity 
+}
+
+def handlePostRequest = {
+    val httppost = new HttpPost(url)
+    headers.foreach { httppost.addHeader(_) } 
+    httppost.setEntity(formEntity)
+    val responseBody = new DefaultHttpClient().execute(httppost, new BasicResponseHandler())
+    println(responseBody)
+}
+```
+
+Something interesting and unusual is going on here. First is the toJavaList method. The Scala List and the Java List are two different types of objects and aren’t directly compatible with each other. Because HttpClient is a Java library, you have to convert it to a Java type collection before calling the UrlEncodedFormEntity. The special :_* tells the Scala compiler to send the result of toArray as a variable argument to the Arrays.asList method; otherwise, asList will create a Java List with one element. The following example demonstrates that fact:
+
+```scala
+
+scala> val scalaList = List(1,2,3)
+scalaList: List[Int] = List(1, 2, 3)
+
+scala> val javaList = java.util.Arrays.asList(scalaList.toArray)
+javaList: java.util.List[Array[Int]] = [[I@646e6d07]
+
+scala> val javaList = java.util.Arrays.asList(scalaList.toArray:_*)
+javaList: java.util.List[Int] = [1, 2, 3]
+
+```
+
+the complete RestClient.scala script. 
+
+
+
+In this complete example you implemented the support for four types of HTTP requests: POST, GET, DELETE, and OPTIONS. The require function call ensures that your script is invoked with at least two parameters: the action type and the URL of the REST service. The pattern-matching block at the end of the script selects the appropriate action handler for a given action name. The parseArgs function handles the additional arguments provided to the script, such as request parameters or headers, and returns a Map containing all the name-value pairs. The formEntity function is interesting because the URL encodes the request parameters when the http request type is POST, because in POST request parameters are sent as part of the request body and they need to be encoded.
+
+### Summary
+
+This chapter covered most of the basic Scala concepts like data types, variables, and functions. You saw how to install and configure Scala. Most importantly, you learned how to define functions, an important building block in Scala, and functional con- cepts including pattern matching and for-comprehension. You also learned about exception handling and how Scala uses the same pattern-matching techniques for exception handling. This chapter also provided a basic introduction to List and Array collection types so you can start building useful Scala scripts. Chapter 4 cov- ers Scala collections in detail. You worked with the Scala REPL throughout the chap- ter when trying out examples. The Scala REPL is an important and handy tool, and you’ll use it throughout the book. The chapter finished by building a complete REST client using most of the concepts you learned in it. The example also demonstrated the flexibility Scala provides when building scripts. It’s now time to move on to Scala classes and objects.
+
+## 3 - OOP in Scala
+
+* Building a MongoDB driver using Scala classes and traits
+* Pattern matching with case classes
+* Looking into named and default arguments
+
+Object-oriented programming isn’t new, but Scala has added a few new features that aren’t available in other stati- cally typed languages.
+
+In this chapter you’ll build a Scala driver for MongoDB
+
+MongoDB is a scalable, document-oriented database. You’ll build this driver incrementally using the object-oriented constructs provided by Scala, and along the way I’ll explain each concept in detail. Scala has made some object-oriented innovations, and one of them is the trait. Traits are similar to abstract classes with partial implementation. You’ll explore how to use traits when building Scala applications. 
+
+you’ll learn about Scala case classes. Case classes are useful when it comes to building immutable classes, particularly in the context of concurrency and data transfer objects.
+
+Case classes also allow Scala to bridge the gap between functional programming and OOP in terms of pattern matching. 
+
+###  Building a Scala MongoDB driver: user stories
+
+You won’t need to start from scratch because you’ll use an existing Java driver for MongoDB. You’ll build a Scala wrapper over the Java MongoDB driver. That way, you don’t have to deal with the low-level MongoDB API and can focus on your objective of learning Scala.
+
+The user stories you’ll be implementing in your Scala wrapper driver are as follows:
+
+As a developer, I want an easier way to connect to my MongoDB server and access document databases.
+As a developer, I want to query and manage documents.
+
+WHAT’S A USER STORY? 
+
+A good way to think about a user story is as a reminder to have a conversation with your customer (in Agile, project stake- holders are called customers), which is another way to say it’s a reminder to do some just-in-time analysis. In short, user stories are slim and high-level requirements artifacts.
+
+WHAT’S A USER STORY? A good way to think about a user story is as a reminder to have a conversation with your customer (in Agile, project stake- holders are called customers), which is another way to say it’s a reminder to do some just-in-time analysis. In short, user stories are slim and high-level requirements artifacts.
+
+MongoDB is a scalable, high-performance, open source, schema-free, document- oriented database written in C++.1 MongoDB is a document-based database that uses JSON (JavaScript Object Notation). The schema-free feature lets MongoDB store any kind of data of any structure. You don’t have to define your database tables and attri- butes up front. You can add or remove attributes whenever you need them. This flexi- bility is achieved through the document-based model. Unlike relational databases, in a document-based model records are stored as documents in which any number of fields of any length can be stored. For example, you could have the following JSON documents in a single collection (a collection in MongoDB is like a table in a tradi- tional RDBMS):
+
+```json
+{ name : "Joe", x : 3.3, y : [1,2,3] }
+{ name : "Kate", x : "abc" }
+{ q : 456 }
+```
+
+In a schema-free environment, the concept of schema moves more toward the applica- tion than to the database. Like any other tool, there are pros and cons for using a schema-free database, and it depends on the solution you’re trying to solve.
+
+The format of the document in which the information is stored in MongoDB is BSON (binary JSON). Other document-based databases like Lotus Notes (IBM) and SimpleDB (Amazon.com) use XML for information storage.
+JSON has an added advantage when working with web-based applications because JSON content can be easily consumed with little transformation.
+
+Download mongodb community version for mac using hombrew(need to have xcode installed)
+
+Then, unpack it and run the following command to start the MongoDB server:
+
+```sh
+$ bin/mongod
+
+brew services start mongodb/brew/mongodb-community
+```
+
+To connect to the MongoDB server, use the client shell that ships with the distribution of MongoDB:
+
+```sh
+$ bin/mongo
+MongoDB shell version: 1.2.4
+url: test
+connecting to: test
+type "help" for help
+>
+
+M1137:~ mxn1020$ mongo
+MongoDB shell version v5.0.6
+connecting to: mongodb://127.0.0.1:27017/?compressors=disabled&gssapiServiceName=mongodb
+Implicit session: session { "id" : UUID("5f36c194-429f-45c2-9410-04407f2886e9") }
+MongoDB server version: 5.0.6
+
+```
+
+### Classes and constructors
+
+
+To connect to the already running MongoDB server, create a Mongo client class with a hostname and port number:
+
+```scala
+<scala> class MongoClient(val host:String, val port:Int)
+```
+
+The primary constructor is a constructor that needs to be called directly or indirectly from overloaded constructors when creating the instance MongoClient. You’ll look into overloaded constructors shortly. In Scala, the primary constructor for a class is coded inline with the class definition. In this case, the constructor takes two parame- ters: host and port. The host parameter specifies the address of the server, and port specifies the port in which the MongoDB server is waiting for the connection.
+
+Because all the constructor parameters are preceded by val, Scala will create immutable instance values for each of them. The following example creates an instance of a Mongo client and accesses its properties:
+
+```scala
+scala> val client = new MongoClient("127.0.0.1", 123)
+client: MongoClient = MongoClient@561279c8
+
+scala> client.port
+res0: Int = 123
+
+scala> client.host
+res1: String = 127.0.0.1
+```
+
+Like Java or C#, Scala also uses the new keyword for creating instances of a class. But wait a minute—where’s the body of the MongoClient class? In Scala that’s optional. You can create classes without any class body. Creating a class like a JavaBean with only a getter and setter would be easy in Scala, as in the following:
+
+```scala
+scala> class AddressBean(var address1:String, var address2:String, var city:String, var zipCode:Int)
+defined class AddressBean
+
+scala> var localAddress = new AddressBean("230 43rd street", "", "Columbus", 43233)
+localAddress: AddressBean = AddressBean@1951b871
+```
+
+When parameters are prefixed with var, Scala creates mutable instance variables. The val and var prefixes are optional, and when both of them are missing, they’re treated as private instance values, not accessible to anyone outside the class:
+
+```scala
+scala> class MongoClient(host:String, port:Int)
+defined class MongoClient
+
+scala> val client = new MongoClient("localhost",123)
+client: MongoClient = MongoClient@4e70a728
+
+scala> client.host
+<console>:13: error: value host is not a member of MongoClient
+       client.host
+```
+
+Note that when Scala creates instance values or variables, it also creates accessors for them. At no point in time are you accessing the field directly. The following Mongo- Client definition is equivalent to the class MongoClient(val host:String, val port:Int) definition.
+
+```scala
+class MongoClient(private val _host:String, private val _port:Int) { 
+    def host = _host
+    def port = _port
+}
+```
+
+The reason I’m using private (you’ll learn about access levels later in this chapter) is so the Scala compiler doesn’t generate accessors by default. What val and var do is define a field and a getter for that field, and in the case of var an additional setter method is also created.
+Most of the time you’ll have MongoDB running on the localhost with default port 27017. Wouldn’t it be nice to have an additional zero-argument constructor that defaults the host and port number so you don’t have to specify them every time? How about this:
+
+```scala
+scala> class MongoClient(val host:String, val port:Int) {
+     | def this() = this("127.0.0.1",27017)
+     | }
+defined class MongoClient
+```
+
+```scala
+
+scala> class MongoClient(val host:String, val port:Int) {
+     |     def this() = this("127.0.0.1", 27017)
+     | }
+defined class MongoClient
+
+scala> val client = new MongoClient()
+client: MongoClient = MongoClient@6475472c
+
+scala> client.host
+res0: String = 127.0.0.1
+
+scala> val client2 = new MongoClient("128.0.0.1",8080)
+client2: MongoClient = MongoClient@5dd91bca
+
+scala> client2.host
+res1: String = 128.0.0.1
+```
+
+How do you add a setter method to a class?
+
+To add a setter, you have to suffix your setter method with _=. In the following Person class, age is private so I’ll add both a getter and a setter:
+```scala
+class Person(var firstName:String, var lastName:String, private var _age:Int) {
+    def age = _age
+    def age_=(newAge: Int) = _age = newAge
+}
+```
+Now you can use the Person class and change its age value: 
+```scala
+val p = new Person("Nima", "Raychaudhuri", 2)
+p.age = 3
+```
+The assignment p.age = 3 could be replaced by p.age_=(3). When Scala encoun- ters an assignment like x = e, it checks whether there’s any method defined like x_= and if so, it invokes the method. The assignment interpretation is interesting in Scala, and it can mean different things based on context. For example, assignment to a function application like f(args) = e is interpreted as f.update(args). You’ll read more about function assignments later.
+
+To overload a constructor, name it this followed by the parameters. Constructor defi- nition is similar to method definition except that you use the name this. Also, you can’t specify a return type as you can with other methods. The first statement in the overloaded constructors has to invoke either other overloaded constructors or the pri- mary constructor. The following definition will throw a compilation error:
+
+error
+
+```scala
+class MongoClient(val host:String, val port:Int) {
+    def this() = {
+        val defaultHost = "127.0.0.1"
+        val defaultPort = 27017
+        this(defaultHost, defaultPort)
+    } 
+}
+
+MongoClient.scala:3: error: 'this' expected but 'val' found.
+    val defaultHost = "127.0.0.1"
+    ^
+MongoClient.scala:4: error: '(' expected but ';' found.
+    val defaultPort = 27017
+^
+two errors found
+```
+
+This poses an interesting challenge when you have to do some operation before you can invoke the other constructor. Later in this chapter, you’ll look into a companion object and see how it addresses this limitation.
+
+To make a connection to the MongoDB you’ll use the com.mongodb.Mongo class provided by the Mongo Java driver:
+
+```scala
+class MongoClient(val host:String, val port:Int) {
+    private val underlying = new Mongo(host, port)
+    def this() = this("127.0.0.1", 27017)
+}
+```
+
+NOTE 
+
+I have used the Mongo Java driver version 2.10.1 for all the code in this chapter. To run the Scala Mongo wrapper code you’re going to develop in this chapter, you need to have the Java driver .jar file available in the class- path. For more information on the Java driver, visit www.mongodb.org/dis- play/DOCS/Java+Language+Center. To compile the previous code, you have to import com.mongdb.Mongo above the class definition. You’ll learn about importing in the next section.
+
+The underlying instance value will hold the connection to MongoDB. When Scala gen- erates the constructor, it instantiates the underlying instance value too. Because of Scala’s scripting nature, you can write code inside the class like a script, which will get executed when the instance of the class is created (kind of like Ruby). The following example creates a class called MyScript that validates and prints the constructor input:
+
+MyScript.scala
+```scala
+scala> class MyScript(host:String) {
+     |    require(host != null, "have to provide host name")
+     |    if(host == "127.0.0.1") println("host = localhost")
+     |    else println("host = " + host)
+     | }
+
+defined class MyScript
+```
+
+And now load MyScript into Scala REPL:
+
+```scala
+scala> :load MyScript.scala
+Loading MyScript.scala...
+defined class MyScript
+
+scala> val s = new MyScript("127.0.0.1")
+host = localhost
+s: MyScript = MyScript@7e38a7fe
+
+scala> val s = new MyScript(null)
+java.lang.IllegalArgumentException: requirement failed: Have to provide host name
+  at scala.Predef$.require(Predef.scala:224)
+  ... 33 elided
+
+scala> val s = new MyScript("128.1.1.2")
+host = 128.1.1.2
+s: MyScript = MyScript@410ae9a3
+```
+
+How is Scala doing this? Scala puts any inline code defined inside the class into the primary constructor of the class. If you want to validate constructor parameters, you could do that inside the class (usually at the top of the class). Let’s validate the host in the MongoClient:
+
+```scala
+class MongoClient(val host:String, val port:Int) {
+    require(host != null, "You have to provide a host name")
+    private val underlying = new Mongo(host, port)
+    def this() = this("127.0.0.1", 27017)
+}
+```
+
+Right now the MongoClient is using an underlying instance to hold the connection to MongoDB. Another approach would be to inherit from the com.mongodb.Mongo class, and in this case you don’t have to have any instance value to hold the connection to MongoDB. To extend or inherit from a superclass, you have to use the extends key- word. The following code demonstrates how it would look if you extended from the Mongo class provided by the Java driver:
+
+```scala
+class MongoClientV2(val host:String, val port:Int) extends Mongo(host, port){
+    require(host != null, "You have to provide a host name")
+    def this() = this("127.0.0.1", 27017)
+}
+```
+
+As shown in the previous example, you can also inline the definition of the primary constructor of a superclass. One drawback of this approach is that you can no longer validate the parameters of the primary constructor before handing it over to the superclass.
+
+
+NOTE
+When you don’t explicitly extend any class, by default that class extends the scala.AnyRef class. scala.AnyRef is the base class for all refer- ence types (see section 3.1).
+
+Even though extending Mongo as a superclass is a completely valid way to implement this driver, you’ll continue to use the earlier implementation because that will give you more control over what you want to expose from the Scala driver wrapper, which will be a trimmed-down version of the complete Mongo Java API. Before going any further, I’ll talk about Scala imports and packages. This will help you to work with the Mongo library and structure your code.
+
+
+### Packaging
+
+A package is a special object that defines a set of member classes and objects. The Scala package lets you segregate code into logical groupings or namespaces so that they don’t conflict with each other. In Java you’re only allowed to have package at the top of the .java file, and the declaration defines the scope across the file. Scala takes a dif- ferent approach for packaging. It combines Java’s declaration approach with C#’s scoped approach. You can still use the traditional Java approach and define package at the top of the Scala file, or use a scoping approach, as demonstrated in the follow- ing listing.
+
+
+Declaring packages using the scoping approach
+
+```scala
+package com {
+    package scalainaction {
+        package mongo {
+            
+            import com.mongodb.Mongo
+            
+            class MongoClient(val host:String, val port:Int) {
+                require(host != null, "You have to provide a host name")
+                private val underlying = new Mongo(host, port)
+                def this() = this("127.0.0.1", 27017)
+            } 
+        }
+    } 
+}
+```
+
+Here you’re creating the com.scalainaction.mongo package for the MongoClient class. The previous code is exactly equivalent to the following code, where you’re declaring the package in traditional Java style:
+
+```scala
+package com.scalainaction.mongo
+
+import com.mongodb.Mongo
+
+class MongoClient(val host:String, val port:Int) {
+  require(host != null, "You have to provide a host name")
+  private val underlying = new Mongo(host, port)
+  def this() = this("127.0.0.1", 27017)
+}
+
+```
+You can also use curly braces with top-level package declarations like the following:
+
+```scala
+package com.scalainaction.mongo {
+    import com.mongodb.Mongo
+    class MongoClient(val host:String, val port:Int) {
+        require(host != null, "You have to provide a host name")
+        private val underlying = new Mongo(host, port)
+        def this() = this("127.0.0.1", 27017)
+    } 
+}
+```
+
+It’s a matter of style; you can use either one of them. The scoping approach shown in listing 3.1 provides more flexibility and a concise way to lay out your code in different packages. But it might quickly become confusing if you start to define multiple pack- ages in the same file. The most widely used way in Scala code bases is the traditional way of declaring a package at the top of the Scala file. The only large, open source project I know of that uses the package-scoping approach is the Lift web framework
+
+One more interesting point to note here is that Scala package declaration doesn’t have to match the folder structure of your filesystem. You’re free to declare multiple 
+packages in the same file:
+
+```scala
+package com.persistence {
+  package mongo {
+     class MongoClient
+  }
+  package riak {
+    class RiakClient
+  }
+  package hadoop {
+    class HadoopClient
+  }
+}
+```
+
+If you save this code in a file called Packages.scala and compile it using the Scala com- piler (scalac Packages.scala), you’ll notice that the Scala compiler generates class files in appropriate folders to match your package declaration. This ensures that your classes are compatible with the JVM, where package declaration has to match the folder structure in the filesystem.2 
+
+Building Scala code
+
+
+Scalac2 is the compiler that comes bundled with the Scala distribution. If you’ve installed Scala as specified in chapter 2, you should have it available in your path. The Scala compiler provides lots of standard options, like deprecation, verbose, and classpath, and additional advanced options. For example, to compile the Mongo- Client you have to do the following:
+
+scalac -classpath mongo/mongo-2.10.1.jar MongoClient.scala
+
+Invoking the Scala compiler directly for smaller examples is okay, but for larger proj- ects I tend to use build tools like Ant, Maven, or SBT. Ant and Maven are standard tools for building Java projects. You can easily use them to build Scala projects too, but the standard build tool for Scala projects is SBT3. Chapter 5 discusses how to use build tools to build Scala projects. For now, let’s stick to scalac.
+
+### Scala imports
+
+You’ve already seen some examples of import in previous chapters, but I haven’t dis- cussed it. At first glance, the Scala import looks similar to Java imports, and it’s true they’re similar, but Scala adds some coolness to it. To import all the classes under the package com.mongodb, you have to declare the import as follows:
+
+```scala
+import com.mongodb._
+```
+
+Here’s another use for _, and in this context it means you’re importing all the classes under the com.mongodb package. In Scala, import doesn’t have to be declared at the top of the file; you could use import almost anywhere:
+
+In this case you’re importing the Random class defined in the scala.util package in the Scala code block, and it’s lexically scoped inside the block and won’t be available outside it. Because the Scala package is automatically imported to all Scala programs, you could rewrite the block by relatively importing the util.Random class:
+
+```scala
+scala> val randomValue = { import scala.util.Random
+     |   new Random().nextInt
+     | }
+randomValue: Int = -417259817
+
+scala> val randomValue = { import util.Random
+        new Random().nextInt
+    }
+
+```
+
+In Scala, when you import a package, Scala makes its members, including subpack- ages, available to you. To import members of a class, you have to put ._ after the class name:
+
+
+```scala
+scala> import java.lang.System._
+import java.lang.System._
+
+scala> nanoTime
+res0: Long = 13451553113577
+```
+
+
+Here you’re invoking the nanoTime method defined in the System class without a pre- fix because you’ve imported the members of the System class. This is similar to static imports in Java (Scala doesn’t have the static keyword). Because imports are rela- tively loaded, you could import the System class in the following way as well:
+
+```scala
+scala> import java.lang._
+import java.lang._
+
+scala> import System._
+import System._
+
+scala> nanoTime
+res0: Long = 1268519178151003000
+```
+
+You could also list multiple imports separated by commas. Scala also lets you map a class name to another class name while importing—you’ll see an example of that soon.
+
+
+The _root_ package in Scala
+
+Consider the following example:
+```scala
+package monads { class IOMonad } 
+package io {
+    package monads {
+        class Console { val m = new monads.IOMonad }
+    } 
+}
+```
+If you try to compile this code, you’ll get an error saying that type IOMonad isn’t avail- able. That’s because Scala is looking for the IOMonad type in the io.monads pack- age, not in another top-level package called monads. To specify a top-level package you have to use _root_:
+
+```scala
+val m = new _root_.monads.IOMonad
+```
+
+Another point to note here is that if you create classes or objects without a package declaration, they belong to an empty package. You can’t import an empty package, but the members of an empty package can see each other.
+
+There’s one handy feature of Scala import: it allows you to control the names that you import in your namespace, and in some cases it improves readability. In Java, for exam- ple, working with both java.util.Date and java.sql.Date in the same file becomes confusing; in Scala you could easily remap java.sql.Date to solve the problem:
+
+```scala
+import java.util.Date
+import java.sql.{Date => SqlDate}
+import RichConsole._
+
+val now = new Date
+p(now)
+val sqlDate = new SqlDate(now.getTime)
+p(sqlDate)
+```
+
+The java.sql.Date is imported as SqlDate to reduce confusion with java.util .Date. You can also hide a class using import with the help of the underscore:
+
+```scala
+import java.sql.{Date => _ }
+```
+
+The Date class from the java.sql package is no longer visible for use.
+To finish the functionality required for the first user story, you still need to add methods for creating and dropping the database. To achieve that you’ll add the meth-
+ods shown in the following listing.
+
+Completed MongoClient
+
+```scala
+package com.scalainaction.mongo
+
+class MongoClient(val host:String, val port:Int) {
+    require(host != null, "You have to provide a host name")
+    private val underlying = new Mongo(host, port)
+    def this() = this("127.0.0.1", 27017)
+    def version = underlying.getVersion
+    def dropDB(name:String) = underlying.dropDatabase(name)
+    def createDB(name:String) = DB(underlying.getDB(name))
+    def db(name:String) = DB(underlying.getDB(name))
+}
+```
+
+Everything in this code should be familiar to you except the createDB and db meth- ods. I haven’t yet introduced DB objects (I do that in the next section). The createDB and db method implementations are identical because the getDB method defined in the Java driver creates a db if one isn’t found, but I wanted to create two separate methods for readability.
+
+### Objects and companion objects
+
