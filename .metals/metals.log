@@ -3886,3 +3886,16 @@ Caused by: java.lang.IllegalArgumentException: 5 is not a valid line number, all
 2022.02.26 17:33:23 WARN  no build target for: /Users/mxn1020/Documents/VSCode/scala-101/MongoClient.scala
 2022.02.26 17:33:24 WARN  no build target for: /Users/mxn1020/Documents/VSCode/scala-101/MongoClient.scala
 2022.02.26 17:33:24 WARN  no build target for: /Users/mxn1020/Documents/VSCode/scala-101/MongoClient.scala
+2022.02.26 17:37:08 INFO  shutting down Metals
+2022.03.11 18:54:16 INFO  tracing is disabled for protocol LSP, to enable tracing of incoming and outgoing JSON messages create an empty file at /Users/mxn1020/Documents/VSCode/scala-101/.metals/lsp.trace.json or /Users/mxn1020/Library/Caches/org.scalameta.metals/lsp.trace.json
+2022.03.11 18:54:17 INFO  logging to file /Users/mxn1020/Documents/VSCode/scala-101/.metals/metals.log
+2022.03.11 18:54:17 INFO  Started: Metals version 0.11.2 in workspace '/Users/mxn1020/Documents/VSCode/scala-101' for client Visual Studio Code 1.64.2.
+2022.03.11 18:54:17 INFO  Parse release: 1.8.0_311
+2022.03.11 18:54:18 INFO  time: initialize in 0.96s
+2022.03.11 18:54:18 INFO  Deleting old database format /Users/mxn1020/Documents/VSCode/scala-101/.metals/metals.h2.db
+2022.03.11 18:54:18 WARN  Build server is not auto-connectable.
+2022.03.11 18:54:18 WARN  no build tool detected in workspace '/Users/mxn1020/Documents/VSCode/scala-101'. The most common cause for this problem is that the editor was opened in the wrong working directory, for example if you use sbt then the workspace directory should contain build.sbt. 
+2022.03.11 18:54:18 WARN  no build target for: /Users/mxn1020/Documents/VSCode/scala-101/RichConsole.scala
+Mar 11, 2022 6:54:19 PM org.eclipse.lsp4j.jsonrpc.RemoteEndpoint handleCancellation
+WARNING: Unmatched cancel notification for request id 1
+2022.03.11 18:54:26 INFO  no build target found for /Users/mxn1020/Documents/VSCode/scala-101/RichConsole.scala. Using presentation compiler with project's scala-library version: 3.1.1

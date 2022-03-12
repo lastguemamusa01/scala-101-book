@@ -2138,3 +2138,161 @@ Everything in this code should be familiar to you except the createDB and db met
 
 ### Objects and companion objects
 
+Before I show you the DB class used in the previous example, let’s explore Scala objects. Scala doesn’t provide any static modifier, and that has to do with the design goal of building a pure object-oriented language where every value is an object, every operation is a method call, and every variable is a member of some object. Having static doesn’t fit well with that goal, and along with that there are plenty of down- sides4 to using static in the code. Instead, Scala supports something called singleton objects. A singleton object allows you to restrict the instantiation of a class to one object.5 Implementing a singleton pattern in Scala is as simple as the following:
+
+```scala
+
+object RichConsole {
+    def p(x: Any) = println(x)
+}
+
+```
+
+Here RichConsole is a singleton object. The object declaration is similar to a class dec- laration except instead of class you’re using the object keyword. To invoke the new p method, you have to prefix it with the class name, as you’d invoke static methods in Java or C#:
+
+```scala
+
+scala> RichConsole.p("rich console")
+rich console
+
+```
+
+You can import and use all the members of the RichConsole object as follows:
+
+```scala
+
+scala> import RichConsole._
+import RichConsole._
+
+scala> p("this is cool")
+this is cool
+
+```
+
+The DB object introduced in listing 3.2 is nothing but a factory to create DB instances representing a database in MongoDB:
+
+```scala
+object DB {
+  def apply(underlying: MongDB) = new DB(underlying)
+}
+```
+
+What’s interesting here is that when you use a DB object as a factory, you’re calling it as if it’s a function, DB(underlying.getDB(name)), whereas you’d expect something like DB.apply(underlying.getDB(name)). Scala provides syntactic sugar that allows you to use objects as function calls. Scala achieves this by translating these calls into the apply method, which matches the given parameters defined in the object or class. If there’s no matching apply method, it will result in a compilation error. Even though calling an apply method explicitly is valid, a more common practice is the one I’m using in the example. Note also that an object is always evaluated lazily, which means that an object will be created when its first member is accessed. In this case, it’s apply.
+
+#### The Factory pattern in Scala
+
+When discussing constructors I mentioned that sometimes working with constructors could create some limitations like processing or validating parameters because in overloaded constructors the first line has to be a call to another constructor or the primary constructor. Using Scala objects we could easily address that problem because the apply method has no such limitation. For example, let’s implement a Factory pattern in Scala. Here you’ll create multiple Role classes, and based on the role name you’ll create an appropriate role instance:
+
+
+```scala
+
+abstract class Role { def canAccess(page: String): Boolean }
+
+class Root extends Role {
+    override def canAccess(page:String) = true
+}
+
+class SuperAnalyst extends Role {
+    override def canAccess(page: String) = page != "Admin"
+}
+
+class Analyst extends Role {
+    override def canAccess(page: String) = false
+}
+
+object Role {
+    def apply(roleName: String) = roleName match {
+        case "root" => new Root
+        case "superAnalyst" => new SuperAnalyst
+        case "analyst" => new Analyst
+    }
+}
+
+// Now you can use the role object as a factory to create instances of various roles:
+
+scala> val root = Role("root")
+root: Role = Root@1de5f0ef
+
+scala> val analyst = Role("analyst")
+analyst: Role = Analyst@1992eaf4
+
+```
+
+Inside the apply method you’re creating an instance of the DB class. In Scala, both a class and an object can share the same name. When an object shares a name with a class, it’s called a companion object, and the class is called a companion class. Now the DB.scala file looks like the following:
+
+companion object ->  object Role
+companion class ->  abstract class Role 
+
+```scala
+
+package com.scalainaction.mongo
+import com.mongodb.{DB => MongoDB}
+
+class DB private(val underlying: MongoDB) { }
+
+object DB {
+  def apply(underlying: MongoDB) = new DB(underlying)
+}
+
+```
+
+First, the DB class constructor is marked as private so that nothing other than a com- panion object can use it. In Scala, companion objects can access private members of the companion class, which otherwise aren’t accessible to anything outside the class. In the example, this might look like overkill, but there are times when creating an instance of classes through a companion object is helpful (look at the sidebar for the factory pattern). The second interesting thing in the previous code is the mongodb import statement. Because of the name conflict, you’re remapping the DB class defined by the Java driver to MongoDB.
+
+Package object
+
+The only things you can put in a package are classes, traits, and objects. But with the help of the package object, you can put any kind of definition in a package, such as a class. For example, you can add a helper method in a package object that will be available to all members of the package. Each package is allowed to have one package object. Normally you would put your package object in a separate file, called package.scala, in the package that it corresponds to. You can also use the nested package syntax, but that’s unusual:
+
+```scala
+
+package object bar { 
+    val minimumAge = 18 
+    def verifyAge = {}
+}
+
+```
+
+minimumAge and verifyAge will be available to all members of the package bar. The
+following example uses verifyAge defined inside the package object:
+
+```scala
+package bar 
+
+class BarTender {
+    def serveDrinks = { verifyAge; ... } 
+}
+
+```
+
+The main use case for package objects is when you need definitions in various places inside your package, as well as outside the package when you use the API defined by the package.
+
+In MongoDB, a database is divided into multiple collections of documents. Shortly you’ll see how you can create a new collection inside a database, but for now add a method to retrieve all the collection names to the DB class:
+
+
+```scala
+
+package com.scalainaction.mongo
+import com.mongodb.{DB => MongoDB}
+import scala.collection.convert.Wrappers._
+
+class DB private(val underlying: MongoDB) {
+    def collectionNames = for (name <- new JSetWrapper(underlying.getCollectionNames)} yield name
+}
+
+```
+
+The only thing that looks somewhat new is the Wrappers object. You’re using utility objects provided by Wrappers to convert a java.util.Set to a Scala set so you can use a Scala for-comprehension. Wrappers provides conversions between Scala and Java collections. To try out the mongodb driver, write this sample client code:
+
+```scala
+
+import com.scalainaction.mongo._
+
+def client = new MongoClient
+def db = client.createDB("mydb")
+
+for(name <- db.collectionNames) println(name)
+
+```
+
+This sample client creates a database called mydb and prints the names of all the col- lections under the database. If you run the code, it will print test and system .indexes, because by default MongoDB creates these two collections for you.
+Now you’re going to expose CRUD (create, read, update, delete) operations in the Scala driver so that users of your driver can work with documents. The following list- ing shows the Scala driver code you’ve written so far.
+
